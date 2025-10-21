@@ -1,5 +1,15 @@
 # CC3D-SimSurrogate
 
+## Objective
+
+This project utilizes Machine Learning (ML) to infer parameter values for multi-scale, agent-based biological models built in CompuCell3D. One of the most important and time-consuming parts of the CompuCell3D simulation is the process of solving Partial Differential Equations, which describe behavior of certain simulation objects. Here we present a model that predict parameter values given a range of initial conditions, which provides a proof-of-concept for an ML model that is able to solve this diffusion problem. Through the realization of this goal, time-consuming CompuCell3D simulations can be replaced with  instant neural network predictions while maintaining accuracy within biological noise levels.
+
+For more information on CompuCell3D and terminology used, please reference the CompuCell3D reference manual: https://compucell3dreferencemanual.readthedocs.io
+
+This project delivers simulation scripts, a complete dataset, and a trained ML model to support rapid and accurate parameter inference. The model being presented is able to accurately predict the values for the mean volume and mean surface given varying values for total volume, total surface, lambda volume, lambda surface, and contact energy. The project workflow proceeded via the following three stages: (1) developing Python scripts that incorporate CompuCell3D simulation logic and allow automated variation of input parameters, (2) running these simulations repeatedly to generate a structured dataset of inputs and corresponding outcomes, and (3) using the dataset to train and evaluate a neural network model that learns the mapping between parameter values and simulation results. View the "Workflow" section for detailed information about each of these stages.
+
+## Workflow
+
 #### Neural Network Configuration
 
 The following section includes directions on how to interpret and handle only the sections of code that are most crucial for training the model. The creation of this neural network was guided via the tutorial linked below, and should be used as a reference and provide rationale for the "best practices" followed. For additional information about other components of the file, please refer to the documentation for PyTorch and Pandas here:
