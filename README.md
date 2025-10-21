@@ -131,7 +131,8 @@ The following section includes directions on how to interpret and handle only th
 **PyTorch Documentation:** https://docs.pytorch.org/docs/stable/index.html
 **Pandas Documentation:** https://pandas.pydata.org/docs/
 **PyTorch Tutorial:** https://www.youtube.com/watch?v=V_xro1bcAuA
-###### **Device Configuration**
+
+##### **Device Configuration**
 
 ```python
 device = torch.device("cuda:0")
@@ -217,7 +218,8 @@ batch_size = 8192
 ```
 
 Specify the appropriate batch size and adjust according to dataset size. Larger batch sizes can increase training speed but may provide less accurate results. Smaller batch sizes may be more computationally expensive, have greater stochasticity, and train with more noise. However, small batches can lead to better generalization. When training the model, a moderately large batch size was selected due to available GPU processing power and the need for faster training times. Utilize PyTorch documentation, the PyTorch tutorial, and other relevant sources to re-assess batch size if needed.
-###### **Training Loop**
+
+##### **Training Loop**
 
 ```python
 for epoch in range(epochs):
