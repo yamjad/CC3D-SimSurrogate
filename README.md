@@ -10,6 +10,122 @@ This project delivers simulation scripts, a complete dataset, and a trained ML m
 
 ## Workflow
 
+#### HPC Access
+
+###### VPN Connection
+
+Before accessing BigRed200, you must have the IU VPN configured and connected. This is required for all off-campus access to university computing resources. Download and install the IU VPN client from the university IT services website.
+
+###### SSH Access
+
+**For Mac/Linux Users**: Open Terminal and connect using:
+
+```bash
+ssh [YOUR-IU-USERNAME]@bigred200.uits.iu.edu
+```
+
+**For Windows Users**: Use PuTTY to establish an SSH connection:
+
+1. Download and install PuTTY
+2. Enter hostname: `bigred200.uits.iu.edu`
+3. Use your IU username and passphrase to authenticate
+
+###### File Transfer Setup
+
+Transferring files between your local machine and BigRed200 requires an FTP/SFTP client:
+
+**For Mac Users**:
+- Commander One (also known as FTP-Mac)
+
+**For Windows Users**:
+- WinSCP (recommended)
+
+###### Directory Access
+
+When accessing home directories, you may encounter permission issues with generic paths like `/geode2/home/u070/`. Instead, access your directory directly using the full path:
+
+```
+/geode2/home/u070/[YOUR-IU-USERNAME]
+```
+
+This bypasses directory listing permissions while still allowing you to access your own folder.
+
+###### Environment Setup
+
+**Installing Miniconda**
+
+Once connected to BigRed200, install Miniconda to manage Python environments:
+
+1. Download the Miniconda installer:
+
+```bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+```
+
+2. Run the installer:
+
+```bash
+bash Miniconda3-latest-Linux-x86_64.sh
+```
+
+3. Follow the prompts and initialize conda for your shell
+
+**Creating a CompuCell3D Environment**
+
+1. Create a new conda environment:
+
+```bash
+conda create -n cc3d python=3.9
+```
+
+2. Activate the environment:
+
+```bash
+conda activate cc3d
+```
+
+3. Install CompuCell3D following the instructions at the official CC3D website: [https://compucell3d.org/](https://compucell3d.org/)
+
+###### Account and Storage Configuration
+
+**Account Partition Access**
+
+To submit jobs to BigRed200, you must be added to an account allocation. Common issues include:
+
+**Problem**: Error message "Invalid account or account/partition combination specified"
+
+**Solution**: Your Principal Investigator (PI) must add you to their BigRed200 allocation. Contact your PI or the project lead with the following information:
+
+- Your IU username
+- The account number (e.g., r00128)
+- Request to be added to the BigRed200 allocation
+
+After being added, it may take up to one hour for your username to be added to the account on the system.
+
+**Verifying Account Access**
+
+Check which accounts you have access to:
+
+```bash
+sacctmgr show user [YOUR-IU-USERNAME]
+```
+
+###### Storage Locations
+
+**Scratch Storage** (Recommended for active simulations):
+
+```
+/N/scratch/[YOUR-IU-USERNAME]
+```
+
+**Important Limitations**:
+
+- **Time limit**: Files in scratch storage are subject to automatic deletion after a certain period (typically 30 days)
+- **Storage capacity**: Limited quota per user
+- **Performance**: Optimized for high-speed I/O during simulations
+
+Use scratch storage for running simulations and periodically move important results to long-term storage.
+
 #### Neural Network Configuration
 
 The following section includes directions on how to interpret and handle only the sections of code that are most crucial for training the model. The creation of this neural network was guided via the tutorial linked below, and should be used as a reference and provide rationale for the "best practices" followed. For additional information about other components of the file, please refer to the documentation for PyTorch and Pandas here:
