@@ -8,15 +8,13 @@ For more information on CompuCell3D and terminology used, please reference the C
 
 This project delivers simulation scripts, a complete dataset, and a trained ML model to support rapid and accurate parameter inference. The model being presented is able to accurately predict the values for the mean volume and mean surface given varying values for total volume, total surface, lambda volume, lambda surface, and contact energy. The project workflow proceeded via the following three stages: (1) developing Python scripts that incorporate CompuCell3D simulation logic and allow automated variation of input parameters, (2) running these simulations repeatedly to generate a structured dataset of inputs and corresponding outcomes, and (3) using the dataset to train and evaluate a neural network model that learns the mapping between parameter values and simulation results. View the "Workflow" section for detailed information about each of these stages.
 
-## Workflow
+## HPC Access
 
-#### HPC Access
-
-###### VPN Connection
+##### VPN Connection
 
 Before accessing BigRed200, you must have the IU VPN configured and connected. This is required for all off-campus access to university computing resources. Download and install the IU VPN client from the university IT services website.
 
-###### SSH Access
+##### SSH Access
 
 **For Mac/Linux Users**: Open Terminal and connect using:
 
@@ -30,7 +28,7 @@ ssh [YOUR-IU-USERNAME]@bigred200.uits.iu.edu
 2. Enter hostname: `bigred200.uits.iu.edu`
 3. Use your IU username and passphrase to authenticate
 
-###### File Transfer Setup
+##### File Transfer Setup
 
 Transferring files between your local machine and BigRed200 requires an FTP/SFTP client:
 
@@ -40,7 +38,7 @@ Transferring files between your local machine and BigRed200 requires an FTP/SFTP
 **For Windows Users**:
 - WinSCP (recommended)
 
-###### Directory Access
+##### Directory Access
 
 When accessing home directories, you may encounter permission issues with generic paths like `/geode2/home/u070/`. Instead, access your directory directly using the full path:
 
@@ -50,7 +48,7 @@ When accessing home directories, you may encounter permission issues with generi
 
 This bypasses directory listing permissions while still allowing you to access your own folder.
 
-###### Environment Setup
+##### Environment Setup
 
 **Installing Miniconda**
 
@@ -86,7 +84,7 @@ conda activate cc3d
 
 3. Install CompuCell3D following the instructions at the official CC3D website: [https://compucell3d.org/](https://compucell3d.org/)
 
-###### Account and Storage Configuration
+##### Account and Storage Configuration
 
 **Account Partition Access**
 
@@ -110,7 +108,7 @@ Check which accounts you have access to:
 sacctmgr show user [YOUR-IU-USERNAME]
 ```
 
-###### Storage Locations
+##### Storage Locations
 
 **Scratch Storage** (Recommended for active simulations):
 
@@ -126,7 +124,7 @@ sacctmgr show user [YOUR-IU-USERNAME]
 
 Use scratch storage for running simulations and periodically move important results to long-term storage.
 
-#### Neural Network Configuration
+## Neural Network Configuration
 
 The following section includes directions on how to interpret and handle only the sections of code that are most crucial for training the model. The creation of this neural network was guided via the tutorial linked below, and should be used as a reference and provide rationale for the "best practices" followed. For additional information about other components of the file, please refer to the documentation for PyTorch and Pandas here:
 
@@ -141,7 +139,7 @@ device = torch.device("cuda:0")
 
 The device is the computational unit where tensors are stored and computations are performed. Device configuration allows the user to select either a GPU or a CPU for model training. If a GPU is unavailable, replace`cuda:0`with`cpu`understanding that training the model will take longer on average. 
 
-###### **Data Loading**
+##### **Data Loading**
 
 ```python
 data = np.loadtxt("averages_output.dat")
@@ -155,7 +153,7 @@ Here, the data is loaded: the`np.loadtxt`function loads the data from the`.dat`f
 
 Include the correct file name to ensure appropriate data loading. For PyTorch to be able to handle the data, it must be transformed in to a tensor via the`torch.from_numpy()`function. The data is then split into x and y features based on the included data. Adjust the range of values parsed by`torch_tensor`as needed for the input data.
 
-###### **Train-Test Split**
+##### **Train-Test Split**
 
 ```python
 train_split = int(0.8 * len(X_combined))
@@ -165,7 +163,7 @@ y_train, y_test = y_combined[:train_split], y_combined[train_split:]
 
 The data must be partitioned such that it can be used for training the model and evaluating it. An 80/20 split was utilized for the final simulation, which can be adjusted by changing the value of 0.8 to any other desired fractional split. For the dataset used, this split resulted in 800,000 datapoints designated for training and 200,000 datapoints designated for testing. 
 
-###### **Data Labeling**
+##### **Data Labeling**
 
 ```python
 headers = ["T", "TV", "TS", "LV", "LS", "CE", "MV", "STDV", "MS", "STDS"]
@@ -177,7 +175,7 @@ df = pd.read_csv('averages_output.dat', delimiter='\t', header=None, names=heade
 
 Headings for each of the columns of data in the loaded`.dat`file, or referred to as "headers" in the code, are added at this step. Headers aid in data organization and ease data access. This stage is crucial for ensuring that the correct data has been accessed by the x and y tensors. See the comment in the code block above for the meanings of the abbreviations. After the list of headers is declared, the dataset is loaded using the`read_csv()`function and headers are assigned. 
 
-###### **Model Architecture**
+##### **Model Architecture**
 
 ```python
 class NonLinearModule(nn.Module):
@@ -201,7 +199,7 @@ The number of layers can be increased (or decreased) depending on the complexity
 
 The number of features within layers can also be adjusted. The number of in features in the first layer and the number of out features in the final layer must correspond to the amount of input and output parameters. Otherwise, these values can be changed as desired to obtain a precise and accurate model. 
 
-###### **Loss Function and Optimizer**
+##### **Loss Function and Optimizer**
 
 ```python
 loss = nn.L1Loss()
@@ -212,7 +210,7 @@ The loss function and optimizer utilized are assigned at this step. `L1Loss` is 
 
 The learning rate must be adjusted manually. Begin with a learning rate of 0.1 for the first 50-100 epochs. After running the training loop, decrease the learning rate by a power of 10 (i.e. 0.01). Ensure that you re-run the code block containing the loss and optimizer function after adjusting the learning rate before running the training loop. Repeat this process until the train and test loss values plateau and do not change significantly after learning rate adjustments.
 
-###### **Batch Sizes**
+##### **Batch Sizes**
 
 ```python
 batch_size = 8192
@@ -245,7 +243,7 @@ The training loop follows the standard structure for a machine learning model. T
 
 The statement at the end of the code block allows for active tracking of the train and test loss during model training. Every 10 epochs, the current epoch is printed in addition to the average train and test loss for the model. This information is crucial for understanding the overall progress of the model in the training process and provides insight into when the learning rate must be adjusted. 
 
-###### **Prediction Accuracy Assessment**
+##### **Prediction Accuracy Assessment**
 
 ```python
 output = []
@@ -267,7 +265,7 @@ To assess the accuracy of the model's prediction, the following rudimentary yet 
 
 Different values can be assigned in the variable declaration section. Other input variables of interest can also be designated or altered by changing the list associated with the torch.tensor() call for the input_data variable. 
 
-###### **Model Saving**
+##### **Model Saving**
 
 ```python
 from pathlib import Path
@@ -283,7 +281,7 @@ torch.save(model_3.state_dict(), f=MODEL_SAVE_PATH)
 
 Here, the model's state is saved. To avoid re-training the model each time you load it, this code block can be executed to save the model and reload it at another time. A `models`folder is created in the working directory, and within it, the `.pth` file stores the `state_dict` of a PyTorch model, which is a Python dictionary containing the learned parameters of the model's layers. The name of the model can be changed in the `MODEL_NAME`variable.
 
-###### **Model Loading**
+##### **Model Loading**
 
 ```python
 model_3 = NonLinearModule()
