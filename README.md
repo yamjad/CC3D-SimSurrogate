@@ -128,8 +128,10 @@ Use scratch storage for running simulations and periodically move important resu
 
 The following section includes directions on how to interpret and handle only the sections of code that are most crucial for training the model. The creation of this neural network was guided via the tutorial linked below, and should be used as a reference and provide rationale for the "best practices" followed. For additional information about other components of the file, please refer to the documentation for PyTorch and Pandas here:
 
-**PyTorch Documentation:** https://docs.pytorch.org/docs/stable/index.html
+**PyTorch Documentation:** https://docs.pytorch.org/docs/stable/index.html 
+
 **Pandas Documentation:** https://pandas.pydata.org/docs/
+
 **PyTorch Tutorial:** https://www.youtube.com/watch?v=V_xro1bcAuA
 
 ##### **Device Configuration**
