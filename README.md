@@ -39,7 +39,7 @@ y_train, y_test = y_combined[:train_split], y_combined[train_split:]
 
 The data must be partitioned such that it can be used for training the model and evaluating it. An 80/20 split was utilized for the final simulation, which can be adjusted by changing the value of 0.8 to any other desired fractional split. For the dataset used, this split resulted in 800,000 datapoints designated for training and 200,000 datapoints designated for testing. 
 
-###### Data Labeling
+###### **Data Labeling**
 
 ```python
 headers = ["T", "TV", "TS", "LV", "LS", "CE", "MV", "STDV", "MS", "STDS"]
@@ -119,7 +119,7 @@ The training loop follows the standard structure for a machine learning model. T
 
 The statement at the end of the code block allows for active tracking of the train and test loss during model training. Every 10 epochs, the current epoch is printed in addition to the average train and test loss for the model. This information is crucial for understanding the overall progress of the model in the training process and provides insight into when the learning rate must be adjusted. 
 
-###### **Prediction Accuracy Assessment
+###### **Prediction Accuracy Assessment**
 
 ```python
 output = []
@@ -141,7 +141,7 @@ To assess the accuracy of the model's prediction, the following rudimentary yet 
 
 Different values can be assigned in the variable declaration section. Other input variables of interest can also be designated or altered by changing the list associated with the torch.tensor() call for the input_data variable. 
 
-###### **Model Saving
+###### **Model Saving**
 
 ```python
 from pathlib import Path
@@ -157,7 +157,7 @@ torch.save(model_3.state_dict(), f=MODEL_SAVE_PATH)
 
 Here, the model's state is saved. To avoid re-training the model each time you load it, this code block can be executed to save the model and reload it at another time. A `models`folder is created in the working directory, and within it, the `.pth` file stores the `state_dict` of a PyTorch model, which is a Python dictionary containing the learned parameters of the model's layers. The name of the model can be changed in the `MODEL_NAME`variable.
 
-###### **Model Loading
+###### **Model Loading**
 
 ```python
 model_3 = NonLinearModule()
