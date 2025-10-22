@@ -247,7 +247,7 @@ This will automatically generate simulation directories and submit jobs to the S
     └── ...
 ```
 
-##### Core Files
+#### Core Files
 
 ##### `script.py`
 
@@ -328,7 +328,7 @@ Medium_cell_CE = 0
 
 **Note**: This file is overwritten in each simulation directory with sampled parameters.
 
-##### Data Processing Files
+#### Data Processing Files
 
 ##### `consolidation_of_data.py`
 
