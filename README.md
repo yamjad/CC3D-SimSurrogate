@@ -404,7 +404,7 @@ python delete_files_above_threshold.py
 # Type 'yes' when prompted to confirm
 ```
 
-##### Workflow
+#### Workflow
 
  **Generate and Submit Simulations**
 
@@ -449,7 +449,7 @@ python delete_files_without_results.py
 python delete_files_above_threshold.py
 ```
 
-#### SLURM Configuration
+##### SLURM Configuration
 
 **Batch Script Template** (auto-generated):
 
@@ -472,9 +472,7 @@ python delete_files_above_threshold.py
 - Account allocation
 - Output/error file paths
 
-## Output Data Structure
-
-### Simulation Output (`output.txt`)
+##### Simulation Output (`output.txt`)
 
 Each simulation produces one line per cell:
 
@@ -489,7 +487,7 @@ Example:
 97.856 4.987 123.234 9.012
 ```
 
-### Consolidated Output (`averages_output.dat`)
+##### Consolidated Output (`averages_output.dat`)
 
 Tab-separated file with columns:
 
@@ -497,9 +495,7 @@ Tab-separated file with columns:
 fluctuation_amplitude  target_volume  target_surface  lambda_volume  lambda_surface  Medium_cell_CE  mean_avg_vol  mean_std_vol  mean_avg_surf  mean_std_surf
 ```
 
-## Parameter Descriptions
-
-### Simulation Parameters
+##### Simulation Parameters
 
 **fluctuation_amplitude**: Membrane fluctuation amplitude in the Potts model. Higher values allow more random cell shape changes.
 
