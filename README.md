@@ -171,71 +171,502 @@ Before running simulations, edit `script.py` to update paths:
 conda activate cc3d
 ```
 
-2. Submit your job to the SLURM scheduler:
+2. Run the main script:
 
 ```bash
-sbatch script.py
+python script.py
 ```
 
-3. Monitor job status:
+This will automatically generate simulation directories and submit jobs to the SLURM queue.
+
+### Troubleshooting
+
+#### Cannot Access Home Directory
+
+**Symptom**: Permission denied when accessing `/geode2/home/u070/`
+
+**Solution**: Use the direct path `/geode2/home/u070/[YOUR-IU-USERNAME]` instead
+
+#### Account Access Error
+
+**Symptom**: "Invalid account or account/partition combination specified"
+
+**Solution**:
+
+1. Verify you've been added to the account allocation by your PI
+2. Wait up to 1 hour after being added for the system to update
+3. Contact HPC support if issues persist: hpc@iu.edu
+
+#### Missing BatchCall.sh Files
+
+**Symptom**: Script complains about missing batch files
+
+**Solution**: The `script.py` should generate these automatically. Verify:
+
+- You're running the correct version of `script.py`
+- You have write permissions in the target directory
+- No errors occurred during directory creation
+
+#### Output Files Not Written
+
+**Symptom**: `output.txt` files remain empty after simulation
+
+**Solution**:
+1. Check SLURM error files for Python errors
+2. Verify CompuCell3D is properly installed in your conda environment
+3. Ensure file paths in `simulation.py` are correct
+4. Check that you have write permissions in the simulation directories
+
+#### Jobs Not Submitting
+
+**Symptom**: Jobs remain in pending state or don't submit
+
+**Solution**:
+1. Check queue status: `squeue -u [YOUR-IU-USERNAME]`
+2. Verify you haven't exceeded job limits (MAX_JOBS in script)
+3. Check account allocation status
+4. Review SLURM output for errors
+
+### Project Structure
+
+```
+.
+├── script.py                           # Main orchestration script
+├── simulation.py                       # CC3D simulation implementation
+├── parameter.py                        # Parameter configuration template
+├── consolidation_of_data.py            # Results aggregation script
+├── count_files_without_results.py      # Diagnostic utility
+├── delete_files_without_results.py     # Cleanup utility
+├── delete_files_above_threshold.py     # Cleanup utility
+└── Sims/                              # Generated simulation directories
+    ├── 0/
+    │   ├── simulation.py
+    │   ├── parameter.py
+    │   ├── BatchCall.sh
+    │   └── output.txt
+    ├── 1/
+    └── ...
+```
+
+## Core Files
+
+### `script.py`
+
+**Purpose**: Main orchestration script for parameter scanning and job submission.
+
+**Key Features**:
+
+- Generates N simulation directories with randomized parameters
+- Creates SLURM batch scripts for each simulation
+- Manages job queue to respect SLURM limits
+- Handles parameter sampling within defined ranges
+
+**Configuration Variables**:
+
+```python
+MAX_JOBS = 495          # Maximum concurrent SLURM jobs
+WAIT_TIME = 5           # Seconds between queue checks
+N = 2                   # Number of simulations to generate
+```
+
+**Parameter Ranges**:
+
+- `fluctuation_amplitude`: (10, 10) - Fixed value
+- `target_volume`: (25, 150) - Cell target volume
+- `target_surface`: (0.5, 2) - Fraction of optimal surface (4√V)
+- `lambda_volume`: (5, 15) - Volume constraint strength
+- `lambda_surface`: (0, 15) - Surface constraint strength
+- `Medium_cell_CE`: (0, 15) - Medium-cell contact energy
+
+**Usage**:
+
+```bash
+python script.py
+```
+
+### `simulation.py`
+
+**Purpose**: CompuCell3D simulation implementation using the Cellular Potts Model.
+
+**Simulation Parameters**:
+
+- Grid size: 100×100 with periodic boundaries
+- Neighbor order: 2 (for energy calculations)
+- Skip time: 100 MCS (Monte Carlo Steps)
+- Total simulation time: 1000 MCS
+
+**Plugins Used**:
+
+- `PottsCore`: Core Cellular Potts Model
+- `CenterOfMassPlugin`: Tracks cell centers
+- `PixelTrackerPlugin`: Monitors pixel-level changes
+- `VolumePlugin`: Volume constraints
+- `SurfacePlugin`: Surface constraints
+- `ContactPlugin`: Cell-medium contact energy
+
+**Output**: Writes to `output.txt` for each cell:
+
+```
+average_volume std_volume average_surface std_surface
+```
+
+**Multiple Simulation Runs**: The script runs N=10 independent simulations sequentially to gather statistics.
+
+### `parameter.py`
+
+**Purpose**: Template configuration file for simulation parameters.
+
+**Default Parameters**:
+
+```python
+fluctuation_amplitude = 10
+target_volume = 10
+target_surface = 10
+lambda_volume = 1
+lambda_surface = 1
+Medium_cell_CE = 0
+```
+
+**Note**: This file is overwritten in each simulation directory with sampled parameters.
+
+## Data Processing Files
+
+### `consolidation_of_data.py`
+
+**Purpose**: Aggregates results from all simulation runs into a single output file.
+
+**Process**:
+
+1. Searches for directories containing `__pycache__` (indicator of completed Python execution)
+2. Reads `output.txt` (simulation results) from each directory
+3. Reads `parameter.py` to extract parameter values
+4. Calculates mean values across all cells in each simulation
+5. Writes consolidated data to `averages_output.dat`
+
+**Output Format**:
+
+```
+param1  param2  param3  param4  param5  param6  avg_vol  avg_vol_std  avg_surf  avg_surf_std
+```
+
+**Usage**:
+
+```bash
+python consolidation_of_data.py
+```
+
+**Output File**: `averages_output.dat`
+
+### Utility Files
+
+#### `count_files_without_results.py`
+
+**Purpose**: Diagnostic tool to count simulation directories.
+
+**Function**: Counts directories containing `__pycache__` in the `Sims` folder.
+
+**Usage**:
+
+```bash
+python count_files_without_results.py
+```
+
+#### `delete_files_without_results.py`
+
+**Purpose**: Cleanup tool to remove incomplete simulations.
+
+**Function**: Deletes subdirectories in `Sims` that don't contain `result.dat`.
+
+**Usage**:
+
+```bash
+python delete_files_without_results.py
+```
+
+**Warning**: This permanently deletes directories. Use with caution.
+
+#### `delete_files_above_threshold.py`
+
+**Purpose**: Cleanup tool to remove simulation directories above a numeric threshold.
+
+**Configuration**:
+
+```python
+base_path = "/u/[YOUR-IU-USERNAME]/[FILE PATH]/Sims"
+threshold = 683154 - 101
+```
+
+**Safety Feature**: Requires user confirmation before deletion.
+
+**Usage**:
+
+```bash
+python delete_files_above_threshold.py
+# Type 'yes' when prompted to confirm
+```
+
+## Workflow
+
+### 1. Generate and Submit Simulations
+
+```bash
+# Edit script.py to set N (number of simulations)
+python script.py
+```
+
+This will:
+
+- Create N directories in `Sims/`
+- Generate random parameters for each
+- Submit SLURM jobs (respecting MAX_JOBS limit)
+
+### 2. Monitor Job Progress
 
 ```bash
 squeue -u [YOUR-IU-USERNAME]
 ```
 
-### Job Management
-
-#### Checking Job Status
+### 2. Monitor Job Progress
 
 ```bash
 squeue -u [YOUR-IU-USERNAME]
 ```
 
-This displays all your active jobs with their job IDs, status, and resource usage.
-
-#### Canceling Jobs
-
-To cancel a specific job:
+### 3. Check Completion
 
 ```bash
-scancel [JOB-ID]
+python count_files_without_results.py
 ```
 
-To cancel all your jobs:
+### 4. Consolidate Results
 
 ```bash
-scancel -u [YOUR-IU-USERNAME]
+python consolidation_of_data.py
 ```
 
-#### Viewing Job Output
+This generates `averages_output.dat` with all results.
 
-SLURM creates output files in your working directory:
-
-- `slurm-[JOB-ID].out` - Standard output
-- `slurm-[JOB-ID].err` - Error output (if configured)
-
-View these files to monitor simulation progress and debug issues.
-
-### Data Collection
-
-After simulations complete:
-
-1. Navigate to your output directory
-2. Check that all expected files were generated
-3. Transfer important results from scratch storage to permanent storage
-4. Combine individual simulation outputs if necessary
-
-Example of combining output files:
+### 5. Clean Up
 
 ```bash
-cat output_*.dat > combined_output.dat
+# Remove incomplete runs
+python delete_files_without_results.py
+
+# Remove runs above threshold
+python delete_files_above_threshold.py
 ```
 
-## Model Training
+### SLURM Configuration
 
-### Overview
+**Batch Script Template** (auto-generated):
 
-The machine learning model training phase uses PyTorch to build and train a neural network that learns to predict CompuCell3D simulation outcomes from input parameters. This section provides detailed guidance on each component of the training process.
+```bash
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH -J simulation
+#SBATCH --time=10:00:00
+#SBATCH --mail-user=[YOUR-IU-USERNAME]@iu.edu
+#SBATCH -A r00128
+#SBATCH -o /N/scratch/[YOUR-IU-USERNAME]/NNM_CC3D/out.txt
+#SBATCH -e /N/scratch/[YOUR-IU-USERNAME]/NNM_CC3D/error.err
+```
+
+**Customization**: Edit the `generate_sbatch_string()` function in `script.py` to modify:
+
+- Job time limits
+- Email notifications
+- Account allocation
+- Output/error file paths
+
+### Simulation Output (`output.txt`)
+
+Each simulation produces one line per cell:
+
+```
+avg_volume  std_volume  avg_surface  std_surface
+```
+
+Example:
+
+```
+98.234 5.123 124.567 8.901
+97.856 4.987 123.234 9.012
+```
+
+### Consolidated Output (`averages_output.dat`)
+
+Tab-separated file with columns:
+
+```
+fluctuation_amplitude  target_volume  target_surface  lambda_volume  lambda_surface  Medium_cell_CE  mean_avg_vol  mean_std_vol  mean_avg_surf  mean_std_surf
+```
+
+### Simulation Parameters
+
+**fluctuation_amplitude**: Membrane fluctuation amplitude in the Potts model. Higher values allow more random cell shape changes.
+
+**target_volume**: Target volume for cells. Cells are penalized for deviating from this value.
+
+**target_surface**: Target surface area for cells. Calculated as a fraction of the optimal surface (4√V).
+
+**lambda_volume**: Strength of volume constraint. Higher values enforce stricter volume maintenance.
+
+**lambda_surface**: Strength of surface constraint. Higher values enforce stricter surface area maintenance.
+
+**Medium_cell_CE**: Contact energy between cells and the medium. Affects cell adhesion behavior.
+
+### Troubleshooting
+
+**Issue: Jobs not submitting**
+
+**Solution**: Check that `get_total_slurm_job_count() < MAX_JOBS`. Increase WAIT_TIME if needed.
+
+**Issue: No `__pycache__` directories found**
+
+**Solution**: Simulations may not have completed or Python didn't create cache. Check SLURM output files.
+
+**Issue: Empty `output.txt` files**
+
+**Solution**: Simulation may have crashed. Check error logs in SLURM error files.
+
+**Issue: Consolidation script fails**
+
+**Solution**: Ensure all simulations have completed and `parameter.py` files are properly formatted.
+
+## Input Data Structure
+
+The analysis uses consolidated simulation results (`averages_output.dat`) containing:
+
+|Column|Description|
+|---|---|
+|T|Fluctuation amplitude|
+|TV|Target volume|
+|TS|Target surface|
+|LV|Lambda volume (constraint strength)|
+|LS|Lambda surface (constraint strength)|
+|CE|Contact energy (medium-cell)|
+|MV|Mean volume (simulation output)|
+|STDV|Standard deviation of volume|
+|MS|Mean surface (simulation output)|
+|STDS|Standard deviation of surface|
+
+## Analysis Strategy
+
+### 1. Data Quality Assessment
+
+The first step identifies and handles missing values (NaN) in the dataset by replacing them with zeros, which indicate failed simulations. This process verifies data completeness before proceeding with analysis. Failed simulations or numerical instabilities may produce incomplete data that could skew analysis results, making this validation step essential.
+
+### 2. Parameter Space Filtering
+
+The analysis applies multiple filtering strategies to isolate specific parameter regimes:
+
+#### Filter A: Lambda Volume Range
+
+**Criteria**: `5 < LV < 15`
+
+**Purpose**: Focus on moderate constraint strengths where cells can respond to both volume and surface constraints without one dominating.
+
+#### Filter B: Optimal Surface Relationship
+
+**Criteria**: `2√TV < TS < 6√TV`
+
+**Purpose**: Examine cases where target surface is within a reasonable range relative to target volume. The optimal surface for a sphere is `4π^(1/3) * (3V/4)^(2/3) ≈ 4√V`, so this filter captures surfaces from 50% to 150% of the spherical optimum.
+
+#### Filter C: Combined Constraints
+
+**Criteria**: Both Filter A and Filter B
+
+**Purpose**: Identify the most physiologically relevant parameter regime where both volume and surface constraints operate in balanced ranges.
+
+### 3. Relationship Exploration
+
+The analysis systematically explores correlations between parameters and outcomes through scatter plot visualization:
+
+#### Constraint Strength vs. Stability
+
+The analysis examines lambda surface (LS) vs. surface variability (STDS), and lambda volume (LV) vs. volume variability (STDV). Higher constraint strengths should reduce fluctuations, showing negative correlation between lambda values and standard deviations.
+
+#### Cross-property Coupling
+
+The analysis examines surface variability (STDS) vs. volume variability (STDV), and mean volume (MV) vs. mean surface (MS). Understanding how volume and surface properties are coupled reveals whether the cell behaves as an integrated mechanical system. Strong coupling between these properties suggests coordinated regulation of cell geometry.
+
+#### Target vs. Achieved Properties
+
+The analysis examines target volume (TV) vs. mean volume (MV), and target surface (TS) vs. mean surface (MS). Verifying that cells achieve their target properties validates the constraint mechanisms. Deviations between target and achieved values indicate either insufficient constraint strength or conflicting constraints that prevent cells from reaching equilibrium.
+
+#### Constraint Interactions
+
+The analysis examines lambda surface (LS) vs. volume variability (STDV), and lambda volume (LV) vs. surface variability (STDS). Detecting cross-talk between volume and surface constraints reveals whether these properties can be controlled independently. Strong cross-effects suggest that tuning one constraint inevitably affects the other property, requiring careful balance in parameter selection.
+
+### 4. Outlier Detection
+
+The analysis identifies anomalous parameter combinations:
+
+#### High Variability Outliers
+
+**Criteria**: Cells with excessive surface or volume fluctuations
+
+**Purpose**: Flag parameter sets that produce unstable or unrealistic cell behaviors, which might indicate:
+
+- Conflicting constraints
+- Numerical instabilities
+- Insufficient simulation time
+- Phase transitions in cell behavior
+
+#### Combined Criteria Outliers
+
+**Example**: High surface variability with high lambda surface
+
+**Purpose**: These represent paradoxical cases where strong constraints fail to stabilize the system, potentially indicating:
+
+- Parameter regime boundaries
+- Competing constraint effects
+- Novel physical phenomena
+
+### 5. Subset Analysis
+
+The analysis examines narrow parameter ranges:
+
+**Strategy**: Fix some parameters (e.g., target volume) and explore relationships among remaining parameters.
+
+**Purpose**:
+
+- Reduce dimensionality of the parameter space
+- Isolate specific parameter effects
+- Identify parameter-specific sensitivities
+
+**Example**: Fixing target volume near a specific value allows clear visualization of how target surface affects achieved surface.
+
+## Interpretation Guidelines
+
+### Strong Negative Correlations
+
+**Lambda vs. Variability**: Indicates effective constraint enforcement. The model successfully stabilizes cell properties when constraint strength increases.
+
+### Linear Relationships
+
+**Target vs. Mean**: Cells accurately achieve target values across the parameter range, suggesting the model is well-calibrated.
+
+### Scattered or Weak Correlations
+
+**Cross-property effects**: May indicate:
+
+- Independence between parameters (desirable)
+- Complex nonlinear interactions (requires careful parameter selection)
+- Multiple behavioral regimes (need for refined filtering)
+
+### Outliers
+
+**Isolated points**: Often represent:
+
+- Boundary effects (extreme parameters)
+- Transition regions (parameter combinations where cell behavior changes qualitatively)
+- Failed simulations (numerical issues)
+
+## Neural Network Configuration
+
+The following section includes directions on how to interpret and handle only the sections of code that are most crucial for training the model. The creation of this neural network was guided via the tutorial linked below, and should be used as a reference and provide rationale for the "best practices" followed. For additional information about other components of the file, please refer to the documentation for PyTorch and Pandas here:
 
 **Required Libraries**:
 
