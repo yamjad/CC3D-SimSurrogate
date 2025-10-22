@@ -124,6 +124,415 @@ sacctmgr show user [YOUR-IU-USERNAME]
 
 Use scratch storage for running simulations and periodically move important results to long-term storage.
 
+## Data Generation
+
+In order to train the model, data from CompuCell3D simulations is required. In order to generate a large dataset, the files in the `data_generation`folder can be run to complete this task. For project-specific questions, contact your research supervisor or project lead. For technical HPC issues, contact IU Research Technologies support.
+
+**IU HPC Support**: hpc@iu.edu
+
+**BigRed200 Documentation**: [https://kb.iu.edu/d/aolp](https://kb.iu.edu/d/aolp)
+
+**CompuCell3D Documentation**: [https://compucell3d.org/](https://compucell3d.org/)
+
+**SLURM Documentation**: [https://slurm.schedmd.com/](https://slurm.schedmd.com/)
+
+##### File Organization
+
+Organize your simulation files in your scratch directory:
+
+```bash
+cd /N/scratch/[YOUR-IU-USERNAME]
+mkdir NNM_CC3D
+cd NNM_CC3D
+```
+
+**Uploading Project Files**
+
+Use your FTP client to upload:
+
+- `script.py`
+- `simulation.py`
+- `parameter.py`
+- Any other required Python files
+
+**Editing Paths**
+
+Before running simulations, edit `script.py` to update paths:
+
+- Change `/N/scratch/[YOUR-IU-USERNAME]/NNM_CC3D/` to `/N/scratch/[YOUR-IU-USERNAME]/NNM_CC3D/`
+- Update email addresses in the SLURM batch script
+- Verify account allocation number matches your access
+
+##### Submitting Jobs
+
+1. Activate your conda environment:
+
+```bash
+conda activate cc3d
+```
+
+2. Run the main script:
+
+```bash
+python script.py
+```
+
+This will automatically generate simulation directories and submit jobs to the SLURM queue.
+
+##### Troubleshooting
+
+**Cannot Access Home Directory**
+
+**Symptom**: Permission denied when accessing `/geode2/home/u070/`
+
+**Solution**: Use the direct path `/geode2/home/u070/[YOUR-IU-USERNAME]` instead
+
+**Account Access Error**
+
+**Symptom**: "Invalid account or account/partition combination specified"
+
+**Solution**:
+
+1. Verify you've been added to the account allocation by your PI
+2. Wait up to 1 hour after being added for the system to update
+3. Contact HPC support if issues persist: hpc@iu.edu
+
+**Missing BatchCall.sh Files**
+
+**Symptom**: Script complains about missing batch files
+
+**Solution**: The `script.py` should generate these automatically. Verify:
+
+- You're running the correct version of `script.py`
+- You have write permissions in the target directory
+- No errors occurred during directory creation
+
+**Output Files Not Written**
+
+**Symptom**: `output.txt` files remain empty after simulation
+
+**Solution**:
+1. Check SLURM error files for Python errors
+2. Verify CompuCell3D is properly installed in your conda environment
+3. Ensure file paths in `simulation.py` are correct
+4. Check that you have write permissions in the simulation directories
+
+**Jobs Not Submitting**
+
+**Symptom**: Jobs remain in pending state or don't submit
+
+**Solution**:
+1. Check queue status: `squeue -u [YOUR-IU-USERNAME]`
+2. Verify you haven't exceeded job limits (MAX_JOBS in script)
+3. Check account allocation status
+4. Review SLURM output for errors
+##### Project Structure
+
+```
+.
+├── script.py                           # Main orchestration script
+├── simulation.py                       # CC3D simulation implementation
+├── parameter.py                        # Parameter configuration template
+├── consolidation_of_data.py            # Results aggregation script
+├── count_files_without_results.py      # Diagnostic utility
+├── delete_files_without_results.py     # Cleanup utility
+├── delete_files_above_threshold.py     # Cleanup utility
+└── Sims/                              # Generated simulation directories
+    ├── 0/
+    │   ├── simulation.py
+    │   ├── parameter.py
+    │   ├── BatchCall.sh
+    │   └── output.txt
+    ├── 1/
+    └── ...
+```
+
+##### Core Files
+
+##### `script.py`
+
+**Purpose**: Main orchestration script for parameter scanning and job submission.
+
+**Key Features**:
+
+- Generates N simulation directories with randomized parameters
+- Creates SLURM batch scripts for each simulation
+- Manages job queue to respect SLURM limits
+- Handles parameter sampling within defined ranges
+
+**Configuration Variables**:
+
+```python
+MAX_JOBS = 495          # Maximum concurrent SLURM jobs
+WAIT_TIME = 5           # Seconds between queue checks
+N = 2                   # Number of simulations to generate
+```
+
+**Parameter Ranges**:
+
+- `fluctuation_amplitude`: (10, 10) - Fixed value
+- `target_volume`: (25, 150) - Cell target volume
+- `target_surface`: (0.5, 2) - Fraction of optimal surface (4√V)
+- `lambda_volume`: (5, 15) - Volume constraint strength
+- `lambda_surface`: (0, 15) - Surface constraint strength
+- `Medium_cell_CE`: (0, 15) - Medium-cell contact energy
+
+**Usage**:
+
+```bash
+python script.py
+```
+
+##### `simulation.py`
+
+**Purpose**: CompuCell3D simulation implementation using the Cellular Potts Model.
+
+**Simulation Parameters**:
+
+- Grid size: 100×100 with periodic boundaries
+- Neighbor order: 2 (for energy calculations)
+- Skip time: 100 MCS (Monte Carlo Steps)
+- Total simulation time: 1000 MCS
+
+**Plugins Used**:
+
+- `PottsCore`: Core Cellular Potts Model
+- `CenterOfMassPlugin`: Tracks cell centers
+- `PixelTrackerPlugin`: Monitors pixel-level changes
+- `VolumePlugin`: Volume constraints
+- `SurfacePlugin`: Surface constraints
+- `ContactPlugin`: Cell-medium contact energy
+
+**Output**: Writes to `output.txt` for each cell:
+
+```
+average_volume std_volume average_surface std_surface
+```
+
+**Multiple Simulation Runs**: The script runs N=10 independent simulations sequentially to gather statistics.
+
+##### `parameter.py`
+
+**Purpose**: Template configuration file for simulation parameters.
+
+**Default Parameters**:
+
+```python
+fluctuation_amplitude = 10
+target_volume = 10
+target_surface = 10
+lambda_volume = 1
+lambda_surface = 1
+Medium_cell_CE = 0
+```
+
+**Note**: This file is overwritten in each simulation directory with sampled parameters.
+
+##### Data Processing Files
+
+##### `consolidation_of_data.py`
+
+**Purpose**: Aggregates results from all simulation runs into a single output file.
+
+**Process**:
+
+1. Searches for directories containing `__pycache__` (indicator of completed Python execution)
+2. Reads `output.txt` (simulation results) from each directory
+3. Reads `parameter.py` to extract parameter values
+4. Calculates mean values across all cells in each simulation
+5. Writes consolidated data to `averages_output.dat`
+
+**Output Format**:
+
+```
+param1  param2  param3  param4  param5  param6  avg_vol  avg_vol_std  avg_surf  avg_surf_std
+```
+
+**Usage**:
+
+```bash
+python consolidation_of_data.py
+```
+
+**Output File**: `averages_output.dat`
+
+##### Utility Files
+
+##### `count_files_without_results.py`
+
+**Purpose**: Diagnostic tool to count simulation directories.
+
+**Function**: Counts directories containing `__pycache__` in the `Sims` folder.
+
+**Usage**:
+
+```bash
+python count_files_without_results.py
+```
+
+##### `delete_files_without_results.py`
+
+**Purpose**: Cleanup tool to remove incomplete simulations.
+
+**Function**: Deletes subdirectories in `Sims` that don't contain `result.dat`.
+
+**Usage**:
+
+```bash
+python delete_files_without_results.py
+```
+
+**Warning**: This permanently deletes directories. Use with caution.
+
+##### `delete_files_above_threshold.py`
+
+**Purpose**: Cleanup tool to remove simulation directories above a numeric threshold.
+
+**Configuration**:
+
+```python
+base_path = "/u/[YOUR-IU-USERNAME]/[FILE PATH]/Sims"
+threshold = 683154 - 101
+```
+
+**Safety Feature**: Requires user confirmation before deletion.
+
+**Usage**:
+
+```bash
+python delete_files_above_threshold.py
+# Type 'yes' when prompted to confirm
+```
+
+##### Workflow
+
+ **Generate and Submit Simulations**
+
+```bash
+# Edit script.py to set N (number of simulations)
+python script.py
+```
+
+This will:
+
+- Create N directories in `Sims/`
+- Generate random parameters for each
+- Submit SLURM jobs (respecting MAX_JOBS limit)
+
+ **Monitor Job Progress**
+
+```bash
+squeue -u [YOUR-IU-USERNAME]
+```
+
+**Check Completion**
+
+```bash
+python count_files_without_results.py
+```
+
+**Consolidate Results**
+
+```bash
+python consolidation_of_data.py
+```
+
+This generates `averages_output.dat` with all results.
+
+**Clean Up**
+
+```bash
+# Remove incomplete runs
+python delete_files_without_results.py
+
+# Remove runs above threshold
+python delete_files_above_threshold.py
+```
+
+#### SLURM Configuration
+
+**Batch Script Template** (auto-generated):
+
+```bash
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH -J simulation
+#SBATCH --time=10:00:00
+#SBATCH --mail-user=[YOUR-IU-USERNAME]@iu.edu
+#SBATCH -A r00128
+#SBATCH -o /N/scratch/[YOUR-IU-USERNAME]/NNM_CC3D/out.txt
+#SBATCH -e /N/scratch/[YOUR-IU-USERNAME]/NNM_CC3D/error.err
+```
+
+**Customization**: Edit the `generate_sbatch_string()` function in `script.py` to modify:
+
+- Job time limits
+- Email notifications
+- Account allocation
+- Output/error file paths
+
+## Output Data Structure
+
+### Simulation Output (`output.txt`)
+
+Each simulation produces one line per cell:
+
+```
+avg_volume  std_volume  avg_surface  std_surface
+```
+
+Example:
+
+```
+98.234 5.123 124.567 8.901
+97.856 4.987 123.234 9.012
+```
+
+### Consolidated Output (`averages_output.dat`)
+
+Tab-separated file with columns:
+
+```
+fluctuation_amplitude  target_volume  target_surface  lambda_volume  lambda_surface  Medium_cell_CE  mean_avg_vol  mean_std_vol  mean_avg_surf  mean_std_surf
+```
+
+## Parameter Descriptions
+
+### Simulation Parameters
+
+**fluctuation_amplitude**: Membrane fluctuation amplitude in the Potts model. Higher values allow more random cell shape changes.
+
+**target_volume**: Target volume for cells. Cells are penalized for deviating from this value.
+
+**target_surface**: Target surface area for cells. Calculated as a fraction of the optimal surface (4√V).
+
+**lambda_volume**: Strength of volume constraint. Higher values enforce stricter volume maintenance.
+
+**lambda_surface**: Strength of surface constraint. Higher values enforce stricter surface area maintenance.
+
+**Medium_cell_CE**: Contact energy between cells and the medium. Affects cell adhesion behavior.
+
+##### Troubleshooting
+
+**Issue: Jobs not submitting**
+
+**Solution**: Check that `get_total_slurm_job_count() < MAX_JOBS`. Increase WAIT_TIME if needed.
+
+**Issue: No `__pycache__` directories found**
+
+**Solution**: Simulations may not have completed or Python didn't create cache. Check SLURM output files.
+
+**Issue: Empty `output.txt` files**
+
+**Solution**: Simulation may have crashed. Check error logs in SLURM error files.
+
+**Issue: Consolidation script fails**
+
+**Solution**: Ensure all simulations have completed and `parameter.py` files are properly formatted.
+
+
+
 ## Neural Network Configuration
 
 The following section includes directions on how to interpret and handle only the sections of code that are most crucial for training the model. The creation of this neural network was guided via the tutorial linked below, and should be used as a reference and provide rationale for the "best practices" followed. For additional information about other components of the file, please refer to the documentation for PyTorch and Pandas here:
