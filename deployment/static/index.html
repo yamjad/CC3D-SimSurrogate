@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyTorch Model Prediction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .results h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .output-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .output-item:last-child {
+            border-bottom: none;
+        }
+
+        .output-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .output-value {
+            color: #667eea;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 10px;
+            color: #c33;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+            display: none;
+        }
+
+        .loader.show {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Model Prediction</h1>
+        <p class="subtitle">Enter your input values below</p>
+        
+        <form id="predictionForm">
+            <div class="input-group">
+                <label for="tv">TV</label>
+                <input type="number" id="tv" step="any" required placeholder="e.g., 134">
+            </div>
+
+            <div class="input-group">
+                <label for="ts">TS</label>
+                <input type="number" id="ts" step="any" required placeholder="e.g., 25.67">
+            </div>
+
+            <div class="input-group">
+                <label for="lv">LV</label>
+                <input type="number" id="lv" step="any" required placeholder="e.g., 13.87">
+            </div>
+
+            <div class="input-group">
+                <label for="ls">LS</label>
+                <input type="number" id="ls" step="any" required placeholder="e.g., 14.88">
+            </div>
+
+            <div class="input-group">
+                <label for="ce">CE</label>
+                <input type="number" id="ce" step="any" required placeholder="e.g., 0.115">
+            </div>
+
+            <button type="submit">
+                Predict
+                <span class="loader" id="loader"></span>
+            </button>
+        </form>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <h2>Predictions</h2>
+            <div class="output-item">
+                <span class="output-label">Output 1:</span>
+                <span class="output-value" id="output1">-</span>
+            </div>
+            <div class="output-item">
+                <span class="output-label">Output 2:</span>
+                <span class="output-value" id="output2">-</span>
+            </div>
+            <div class="output-item">
+                <span class="output-label">Output 3:</span>
+                <span class="output-value" id="output3">-</span>
+            </div>
+            <div class="output-item">
+                <span class="output-label">Output 4:</span>
+                <span class="output-value" id="output4">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('predictionForm');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+        const loader = document.getElementById('loader');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide previous results/errors
+            results.classList.remove('show');
+            error.classList.remove('show');
+            loader.classList.add('show');
+            
+            // Get input values
+            const data = {
+                TV: parseFloat(document.getElementById('tv').value),
+                TS: parseFloat(document.getElementById('ts').value),
+                LV: parseFloat(document.getElementById('lv').value),
+                LS: parseFloat(document.getElementById('ls').value),
+                CE: parseFloat(document.getElementById('ce').value)
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                loader.classList.remove('show');
+
+                if (!response.ok) {
+                    throw new Error('Prediction failed');
+                }
+
+                const result = await response.json();
+                
+                // Display results
+                document.getElementById('output1').textContent = result.output1.toFixed(4);
+                document.getElementById('output2').textContent = result.output2.toFixed(4);
+                document.getElementById('output3').textContent = result.output3.toFixed(4);
+                document.getElementById('output4').textContent = result.output4.toFixed(4);
+                
+                results.classList.add('show');
+
+            } catch (err) {
+                loader.classList.remove('show');
+                error.textContent = 'Error: ' + err.message;
+                error.classList.add('show');
+            }
+        });
+    </script>
+</body>
+</html>
