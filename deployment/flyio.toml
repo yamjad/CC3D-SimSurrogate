@@ -1,13 +1,17 @@
-# Fly.io configuration file
 
 app = "cc3d-simsurrogate"  # Change this to your preferred name
 primary_region = "iad"      # Change to your preferred region (iad = Virginia)
 
 [build]
   dockerfile = "Dockerfile"
+  ignorefile = ".dockerignore"
 
 [env]
   PORT = "8080"
+
+# Prevent mise from trying to manage Python
+[experimental]
+  auto_rollback = true
 
 [http_service]
   internal_port = 8080
